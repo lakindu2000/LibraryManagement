@@ -11,32 +11,40 @@ import java.util.Objects;
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
     public static void main(String[] args) throws IOException {
+        //Creating a library object
         Library library = new Library();
 
+        //Loading the library items from the file
         List<LibraryItem> libraryItems = LibraryIO.loadItemsFromFile("itemlist.lms");
         for(LibraryItem item:libraryItems){
             library.addItem(item);
         }
 
+        //Loading the users from the file
         List<User> users = LibraryIO.loadUserListFromFile("userlist.lms");
         for(User user:users){
             library.addUser(user);
         }
 
+        //Loading the borrowed items from the file
         Map<String,String> borrowedItems = LibraryIO.loadBorrowedItemsFromFile("borroweditems.lms");
+
+        //Adding the borrowed items to the library
         for(Map.Entry<String,String> borrowedItem:borrowedItems.entrySet()){
             library.getBorrowedItems().put(borrowedItem.getKey(),borrowedItem.getValue());
         }
 
+        //Printing the library items
         System.out.println("Please find the list of all library items");
         library.getLibraryItems().forEach(item-> System.out.println(item.getTitle()+"\t"+item.getAuthor()+"\t"+item.getSerialNumber()));
         System.out.println("-----------------------------------------");
 
-
+        //Printing the users
         System.out.println("Please find the list of all users");
         library.getUserList().forEach(user -> System.out.println(user.getName()));
         System.out.println("-----------------------------------------");
 
+        //Printing the borrowed items
         System.out.println("Please find the list of all the borrowed items from the library");
         library.getBorrowedItems().forEach((item,user)-> System.out.println(item+" : "+user));
         System.out.println("-----------------------------------------");
@@ -107,7 +115,112 @@ public class Main {
 
             } else if (mainOptionStr == 5) {
                 exit = true;
+
+            }else if (mainOptionStr == 3) {
+
+                System.out.println("Please enter the user's name:");
+                String userName = new BufferedReader(new InputStreamReader(System.in)).readLine();
+
+                // Verify if the user exists
+                User borrowingUser = null;
+                for (User user : library.getUserList()) {
+                    if (user.getName().equalsIgnoreCase(userName)) {
+                        borrowingUser = user;
+                        break;
+                    }
+                }
+
+                if (borrowingUser == null) {
+                    System.out.println("User not found! Please create the user first.");
+                    continue;
+                }
+
+                System.out.println("Enter the serial number of the book to borrow:");
+                String serialNumberToBorrow = new BufferedReader(new InputStreamReader(System.in)).readLine();
+
+                // Check if the item exists and is a Book
+                LibraryItem selectedItem = null;
+                for (LibraryItem item : library.getLibraryItems()) {
+                    if (item.getSerialNumber().equals(serialNumberToBorrow)) {
+                        if (item instanceof Book) {
+                            selectedItem = item;
+                        } else {
+                            System.out.println("The selected item is not a book. Borrowing is only allowed for books.");
+                            continue L1; // Return to the main menu
+                        }
+                    }
+                }
+
+                if (selectedItem == null) {
+                    System.out.println("No book with the given serial number exists in the library.");
+                    continue;
+                }
+
+                // Check if the item is already borrowed
+                if (library.getBorrowedItems().containsKey(serialNumberToBorrow)) {
+                    System.out.println("The book \"" + selectedItem.getTitle() + "\" is already borrowed by "
+                            + library.getBorrowedItems().get(serialNumberToBorrow) + ".");
+                } else {
+                    library.borrowItem(serialNumberToBorrow, borrowingUser); // Borrow the item
+                }
+            }else if (mainOptionStr == 4) {
+                System.out.println("Please enter the user's name:");
+                String userName = new BufferedReader(new InputStreamReader(System.in)).readLine();
+
+                // Verify if the user exists
+                User returningUser = null;
+                for (User user : library.getUserList()) {
+                    if (user.getName().equalsIgnoreCase(userName)) {
+                        returningUser = user;
+                        break;
+                    }
+                }
+
+                if (returningUser == null) {
+                    System.out.println("User not found! Unable to return items.");
+                    continue;
+                }
+
+                System.out.println("Enter the serial number of the book to return:");
+                String serialNumberToReturn = new BufferedReader(new InputStreamReader(System.in)).readLine();
+
+                // Check if the serial number corresponds to a borrowed book
+                if (!library.getBorrowedItems().containsKey(serialNumberToReturn)) {
+                    System.out.println("No borrowed book found with the given serial number.");
+                    continue;
+                }
+
+                // Confirm the book was borrowed by the provided user
+                String borrowerName = library.getBorrowedItems().get(serialNumberToReturn);
+                if (!borrowerName.equalsIgnoreCase(userName)) {
+                    System.out.println("The book was not borrowed by this user. Unable to process the return.");
+                    continue;
+                }
+
+                // Find the book in the library's collection
+                LibraryItem selectedItem = null;
+                for (LibraryItem item : library.getLibraryItems()) {
+                    if (item.getSerialNumber().equals(serialNumberToReturn)) {
+                        selectedItem = item;
+                        break;
+                    }
+                }
+
+                if (selectedItem == null || !(selectedItem instanceof Book)) {
+                    System.out.println("The item is not a book or does not exist in the library.");
+                    continue;
+                }
+
+                // Process the return
+                library.returnBorrowedItem(serialNumberToReturn, returningUser);
+                selectedItem.isBorrowed = false; // Update the item's availability
+                System.out.println("The book \"" + selectedItem.getTitle() + "\" has been successfully returned by " + returningUser.getName() + ".");
             }
+
+
+
+
+
         }
         LibraryIO.saveItemToFile(library.getLibraryItems(),"itemlist.lms");
     }
